@@ -1,12 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Guest, Rank } from '../types';
 
 interface GuestInputProps {
   onSubmit: (guest: Guest) => void;
+  editingGuest?: Guest;
+  onCancel?: () => void;
 }
 
-const GuestInput: React.FC<GuestInputProps> = ({ onSubmit }) => {
+const GuestInput: React.FC<GuestInputProps> = ({ onSubmit, editingGuest, onCancel }) => {
   const [formData, setFormData] = useState({
     name: '',
     rank: '' as Rank,
@@ -16,6 +18,29 @@ const GuestInput: React.FC<GuestInputProps> = ({ onSubmit }) => {
     eventName: ''
   });
 
+  // Sync with editingGuest if provided
+  useEffect(() => {
+    if (editingGuest) {
+      setFormData({
+        name: editingGuest.name,
+        rank: editingGuest.rank,
+        arrival: editingGuest.arrival,
+        departure: editingGuest.departure,
+        additionalGuests: editingGuest.additionalGuests,
+        eventName: editingGuest.eventName
+      });
+    } else {
+      setFormData({
+        name: '',
+        rank: '',
+        arrival: '',
+        departure: '',
+        additionalGuests: 0,
+        eventName: ''
+      });
+    }
+  }, [editingGuest]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.arrival || !formData.departure || !formData.rank) {
@@ -23,21 +48,35 @@ const GuestInput: React.FC<GuestInputProps> = ({ onSubmit }) => {
       return;
     }
 
-    const newGuest: Guest = {
+    const resultGuest: Guest = {
       ...formData,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString()
+      id: editingGuest ? editingGuest.id : Math.random().toString(36).substr(2, 9),
+      roomId: editingGuest?.roomId,
+      transport: editingGuest?.transport,
+      createdAt: editingGuest ? editingGuest.createdAt : new Date().toISOString()
     };
-    onSubmit(newGuest);
+    onSubmit(resultGuest);
   };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
       <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">New Arrival Registration</h2>
-          <p className="text-sm text-slate-500">Enter guest details for scheduling and allocation.</p>
+          <h2 className="text-lg font-bold text-slate-800">
+            {editingGuest ? 'Edit Guest Registration' : 'New Arrival Registration'}
+          </h2>
+          <p className="text-sm text-slate-500">
+            {editingGuest ? `Modifying record for ${editingGuest.name}` : 'Enter guest details for scheduling and allocation.'}
+          </p>
         </div>
+        {editingGuest && (
+          <button 
+            onClick={onCancel}
+            className="text-sm text-slate-500 hover:text-rose-600 font-medium px-3 py-1 border border-slate-200 rounded-lg hover:bg-rose-50"
+          >
+            Cancel Edit
+          </button>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -120,8 +159,8 @@ const GuestInput: React.FC<GuestInputProps> = ({ onSubmit }) => {
             type="submit"
             className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
           >
-            <i className="fa-solid fa-plus"></i>
-            Register Guest
+            <i className={`fa-solid ${editingGuest ? 'fa-save' : 'fa-plus'}`}></i>
+            {editingGuest ? 'Save Changes' : 'Register Guest'}
           </button>
         </div>
       </form>

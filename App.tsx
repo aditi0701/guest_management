@@ -13,6 +13,7 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<View>('dashboard');
   const [guests, setGuests] = useState<Guest[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
 
   // Initialize data and run retention logic
   useEffect(() => {
@@ -42,8 +43,18 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedGuests));
   }, []);
 
-  const handleAddGuest = (guest: Guest) => {
-    saveGuests([...guests, guest]);
+  const handleUpsertGuest = (guest: Guest) => {
+    const index = guests.findIndex(g => g.id === guest.id);
+    if (index > -1) {
+      // Update existing
+      const updated = [...guests];
+      updated[index] = guest;
+      saveGuests(updated);
+    } else {
+      // Add new
+      saveGuests([...guests, guest]);
+    }
+    setEditingGuestId(null);
     setActiveView('dashboard');
   };
 
@@ -51,18 +62,51 @@ const App: React.FC = () => {
     saveGuests(guests.map(g => g.id === updatedGuest.id ? updatedGuest : g));
   };
 
+  const handleEditClick = (id: string) => {
+    setEditingGuestId(id);
+    setActiveView('input');
+  };
+
+  const handleDeleteGuest = (id: string) => {
+    if (window.confirm('Are you sure you want to remove this guest entry? This action cannot be undone.')) {
+      saveGuests(guests.filter(g => g.id !== id));
+    }
+  };
+
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard guests={guests} />;
+        return (
+          <Dashboard 
+            guests={guests} 
+            onEdit={handleEditClick} 
+            onDelete={handleDeleteGuest} 
+          />
+        );
       case 'input':
-        return <GuestInput onSubmit={handleAddGuest} />;
+        const guestToEdit = guests.find(g => g.id === editingGuestId);
+        return (
+          <GuestInput 
+            onSubmit={handleUpsertGuest} 
+            editingGuest={guestToEdit} 
+            onCancel={() => {
+              setEditingGuestId(null);
+              setActiveView('dashboard');
+            }}
+          />
+        );
       case 'rooms':
         return <RoomAllocation guests={guests} onUpdate={handleUpdateGuest} />;
       case 'transport':
         return <TransportAllocation guests={guests} onUpdate={handleUpdateGuest} />;
       default:
-        return <Dashboard guests={guests} />;
+        return (
+          <Dashboard 
+            guests={guests} 
+            onEdit={handleEditClick} 
+            onDelete={handleDeleteGuest} 
+          />
+        );
     }
   };
 
@@ -80,6 +124,7 @@ const App: React.FC = () => {
       <Sidebar 
         activeView={activeView} 
         onViewChange={(view) => {
+          if (view !== 'input') setEditingGuestId(null);
           setActiveView(view);
           setIsSidebarOpen(false);
         }}

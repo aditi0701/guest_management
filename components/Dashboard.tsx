@@ -5,9 +5,11 @@ import { ROOMS } from '../constants';
 
 interface DashboardProps {
   guests: Guest[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ guests }) => {
+const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
   const totalGuests = guests.reduce((acc, g) => acc + 1 + g.additionalGuests, 0);
   const allocatedRooms = guests.filter(g => g.roomId).length;
   const transportNeeded = guests.filter(g => g.transport && g.transport !== 'None').length;
@@ -65,8 +67,8 @@ const Dashboard: React.FC<DashboardProps> = ({ guests }) => {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest Information</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Arrival (24h)</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Departure (24h)</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Room Allocation</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Transport</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Room / Transport</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -82,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ guests }) => {
                         <div>
                           <div className="font-bold text-slate-800">{guest.name}</div>
                           <div className="text-xs text-slate-500 flex items-center gap-1">
-                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{guest.rank}</span>
+                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 uppercase font-bold text-[9px]">{guest.rank}</span>
                             {guest.additionalGuests > 0 && <span>• +{guest.additionalGuests} Guests</span>}
                           </div>
                         </div>
@@ -97,24 +99,44 @@ const Dashboard: React.FC<DashboardProps> = ({ guests }) => {
                       <div className="text-xs text-slate-400">{formatTime(guest.departure)}</div>
                     </td>
                     <td className="px-6 py-4">
-                      {room ? (
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                          <span className="text-sm font-semibold text-emerald-700">{room.name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-medium text-slate-400 italic">Pending...</span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {room ? (
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs font-semibold text-emerald-700">{room.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-medium text-slate-400 italic">No Room</span>
+                        )}
+                        {guest.transport && guest.transport !== 'None' ? (
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            <span className="text-xs font-semibold text-amber-700">{guest.transport}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-medium text-slate-400 italic">No Vehicle</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      {guest.transport && guest.transport !== 'None' ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                          <i className="fa-solid fa-car-side mr-1 text-[10px]"></i>
-                          {guest.transport}
-                        </span>
-                      ) : (
-                        <span className="text-xs font-medium text-slate-400">—</span>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => onEdit(guest.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all"
+                          title="Edit Entry"
+                        >
+                          <i className="fa-solid fa-pen-to-square"></i>
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => onDelete(guest.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all"
+                          title="Delete Entry"
+                        >
+                          <i className="fa-solid fa-trash-can"></i>
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
