@@ -1,0 +1,6 @@
+
+{
+  "name": "Guest Management System",
+  "description": "A high-performance guest management portal for tracking arrivals, room allocations, transport, and real-time dashboard analytics with automated data retention.",
+  "requestFramePermissions": []
+}
