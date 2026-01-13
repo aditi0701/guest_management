@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { Guest } from '../types';
-import { ROOMS } from '../constants';
+import { Guest } from '../types.ts';
+import { ROOMS } from '../constants.ts';
 
 interface DashboardProps {
   guests: Guest[];
@@ -33,7 +32,6 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
 
   return (
     <div className="space-y-8">
-      {/* Analytics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center">
@@ -48,7 +46,6 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
         ))}
       </div>
 
-      {/* Main Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-bold text-slate-800">Master Guest Roster</h2>
@@ -144,10 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
               {guests.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center">
-                      <img src="https://picsum.photos/id/10/200/200" alt="empty" className="w-32 h-32 object-cover rounded-full opacity-20 mb-4 grayscale" />
-                      <p className="text-slate-400 font-medium">No records found. Start by registering a guest.</p>
-                    </div>
+                    <p className="text-slate-400 font-medium">No records found. Start by registering a guest.</p>
                   </td>
                 </tr>
               )}

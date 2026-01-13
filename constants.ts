@@ -1,5 +1,4 @@
-
-import { Room, TransportType } from './types';
+import { Room, TransportType } from './types.ts';
 
 export const VEHICLES: TransportType[] = ['Swift', 'Innova', 'Ertiga', 'Ciaz'];
 

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { View } from '../types';
+import { View } from '../types.ts';
 
 interface SidebarProps {
   activeView: View;
@@ -22,9 +21,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, isOpen }) =
       ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
     `}>
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
-        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center mr-3">
-          <i className="fa-solid fa-hotel text-white text-sm"></i>
-        </div>
         <span className="text-lg font-bold tracking-tight">GuestHub</span>
       </div>
 
@@ -34,27 +30,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange, isOpen }) =
             key={item.id}
             onClick={() => onViewChange(item.id)}
             className={`
-              w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 group
+              w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200
               ${activeView === item.id 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' 
+                ? 'bg-blue-600 text-white' 
                 : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
             `}
           >
-            <i className={`fa-solid ${item.icon} w-6 text-lg transition-transform group-hover:scale-110`}></i>
+            <i className={`fa-solid ${item.icon} w-6`}></i>
             <span className="ml-3 font-medium">{item.label}</span>
           </button>
         ))}
       </nav>
-
-      <div className="absolute bottom-0 w-full p-4 border-t border-slate-800">
-        <div className="bg-slate-800 rounded-xl p-4">
-          <p className="text-xs text-slate-400 font-semibold uppercase mb-2">Usage</p>
-          <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-blue-500 h-full w-[25%]"></div>
-          </div>
-          <p className="text-[10px] text-slate-500 mt-2">50 User Capacity Shared</p>
-        </div>
-      </div>
     </aside>
   );
 };
