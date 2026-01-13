@@ -1,39 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 
-const getEnv = (key: string): string => {
-  const prefixes = ['', 'VITE_', 'PUBLIC_', 'NEXT_PUBLIC_'];
-  
-  try {
-    const envSources = [
-      (window as any).process?.env,
-      (import.meta as any).env,
-      (window as any).env
-    ];
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    for (const source of envSources) {
-      if (!source) continue;
-      for (const prefix of prefixes) {
-        const value = source[prefix + key];
-        if (value) return value;
-      }
-    }
-  } catch (e) {}
-  return '';
-};
+export const isSupabaseConfigured =
+  !!supabaseUrl &&
+  !!supabaseAnonKey &&
+  supabaseUrl.startsWith('https://');
 
-const supabaseUrl = getEnv('SUPABASE_URL');
-const supabaseAnonKey = getEnv('SUPABASE_ANON_KEY');
-
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl.startsWith('https://')
-);
-
-export const supabase = isSupabaseConfigured 
+export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
 if (!isSupabaseConfigured) {
-  console.warn("Supabase not detected. Using Local Storage fallback.");
+  console.warn(
+    'Supabase credentials missing. App is running in Local Mode. ' +
+    'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
+  );
 }

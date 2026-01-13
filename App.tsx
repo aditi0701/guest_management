@@ -18,7 +18,6 @@ const App: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [forceLocal, setForceLocal] = useState(!isSupabaseConfigured);
 
-  // Map DB format to UI format
   const mapGuest = (dbGuest: any): Guest => ({
     id: dbGuest.id,
     name: dbGuest.name,
@@ -41,7 +40,6 @@ const App: React.FC = () => {
       const isExpired = (now - departureTime) > SEVEN_DAYS_MS;
       
       if (isExpired && isSupabaseConfigured && !forceLocal) {
-        // Async delete from cloud if possible
         supabase?.from('guests').delete().eq('id', guest.id).then();
       }
       
@@ -50,7 +48,8 @@ const App: React.FC = () => {
   };
 
   const fetchGuests = useCallback(async () => {
-    if (forceLocal || !supabase) {
+    // If Supabase is not configured, always fallback to Local Storage
+    if (!isSupabaseConfigured || forceLocal || !supabase) {
       const local = localStorage.getItem(STORAGE_KEY);
       const parsed = local ? JSON.parse(local) : [];
       setGuests(cleanupOldEntries(parsed));
@@ -69,8 +68,11 @@ const App: React.FC = () => {
       const mapped = (data || []).map(mapGuest);
       setGuests(cleanupOldEntries(mapped));
     } catch (err) {
-      console.error('Cloud fetch failed, switching to local:', err);
-      setForceLocal(true);
+      console.error('Cloud fetch failed, using local fallback:', err);
+      // Don't permanently force local if it's just a network error, but use local for now
+      const local = localStorage.getItem(STORAGE_KEY);
+      const parsed = local ? JSON.parse(local) : [];
+      setGuests(cleanupOldEntries(parsed));
     } finally {
       setIsLoading(false);
       setIsSyncing(false);
@@ -91,7 +93,7 @@ const App: React.FC = () => {
     }
   }, [fetchGuests, forceLocal]);
 
-  const saveGuests = async (updatedGuests: Guest[]) => {
+  const saveGuestsLocally = (updatedGuests: Guest[]) => {
     setGuests(updatedGuests);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedGuests));
   };
@@ -113,17 +115,19 @@ const App: React.FC = () => {
         };
         const { error } = await supabase.from('guests').upsert(dbPayload);
         if (error) throw error;
-      } else {
-        const existing = guests.filter(g => g.id !== guest.id);
-        saveGuests([...existing, guest]);
       }
+      
+      // Always update local cache for responsiveness
+      const existing = guests.filter(g => g.id !== guest.id);
+      saveGuestsLocally([...existing, guest]);
       
       setEditingGuestId(null);
       setActiveView('dashboard');
     } catch (err) {
-      alert('Cloud sync failed. Data saved locally.');
+      console.error('Cloud sync failed, data remains local:', err);
       const existing = guests.filter(g => g.id !== guest.id);
-      saveGuests([...existing, guest]);
+      saveGuestsLocally([...existing, guest]);
+      setActiveView('dashboard');
     } finally {
       setIsSyncing(false);
     }
@@ -141,30 +145,27 @@ const App: React.FC = () => {
           })
           .eq('id', updatedGuest.id);
         if (error) throw error;
-      } else {
-        const newGuests = guests.map(g => g.id === updatedGuest.id ? updatedGuest : g);
-        saveGuests(newGuests);
       }
+      const newGuests = guests.map(g => g.id === updatedGuest.id ? updatedGuest : g);
+      saveGuestsLocally(newGuests);
     } catch (err) {
       console.error(err);
       const newGuests = guests.map(g => g.id === updatedGuest.id ? updatedGuest : g);
-      saveGuests(newGuests);
+      saveGuestsLocally(newGuests);
     } finally {
       setIsSyncing(false);
     }
   };
 
   const handleDeleteGuest = async (id: string) => {
-    if (!window.confirm('Are you sure you want to remove this entry?')) return;
-    
+    if (!window.confirm('Delete this record?')) return;
     setIsSyncing(true);
     try {
       if (!forceLocal && supabase) {
-        const { error } = await supabase.from('guests').delete().eq('id', id);
-        if (error) throw error;
+        await supabase.from('guests').delete().eq('id', id);
       }
       const newGuests = guests.filter(g => g.id !== id);
-      saveGuests(newGuests);
+      saveGuestsLocally(newGuests);
     } catch (err) {
       console.error(err);
     } finally {
@@ -172,130 +173,45 @@ const App: React.FC = () => {
     }
   };
 
-  const handleEditClick = (id: string) => {
-    setEditingGuestId(id);
-    setActiveView('input');
-  };
-
   const renderView = () => {
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-          <i className="fa-solid fa-circle-notch fa-spin text-4xl mb-4"></i>
-          <p className="font-medium tracking-wide">Accessing Records...</p>
-        </div>
-      );
-    }
+    if (isLoading) return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+        <i className="fa-solid fa-circle-notch fa-spin text-4xl mb-4"></i>
+        <p className="font-medium">Syncing Records...</p>
+      </div>
+    );
 
     switch (activeView) {
-      case 'dashboard':
-        return <Dashboard guests={guests} onEdit={handleEditClick} onDelete={handleDeleteGuest} />;
-      case 'input':
-        const guestToEdit = guests.find(g => g.id === editingGuestId);
-        return (
-          <GuestInput 
-            onSubmit={handleUpsertGuest} 
-            editingGuest={guestToEdit} 
-            onCancel={() => {
-              setEditingGuestId(null);
-              setActiveView('dashboard');
-            }}
-          />
-        );
-      case 'rooms':
-        return <RoomAllocation guests={guests} onUpdate={handleUpdateGuest} />;
-      case 'transport':
-        return <TransportAllocation guests={guests} onUpdate={handleUpdateGuest} />;
-      default:
-        return <Dashboard guests={guests} onEdit={handleEditClick} onDelete={handleDeleteGuest} />;
+      case 'dashboard': return <Dashboard guests={guests} onEdit={(id) => { setEditingGuestId(id); setActiveView('input'); }} onDelete={handleDeleteGuest} />;
+      case 'input': return <GuestInput onSubmit={handleUpsertGuest} editingGuest={guests.find(g => g.id === editingGuestId)} onCancel={() => { setEditingGuestId(null); setActiveView('dashboard'); }} />;
+      case 'rooms': return <RoomAllocation guests={guests} onUpdate={handleUpdateGuest} />;
+      case 'transport': return <TransportAllocation guests={guests} onUpdate={handleUpdateGuest} />;
+      default: return <Dashboard guests={guests} onEdit={(id) => { setEditingGuestId(id); setActiveView('input'); }} onDelete={handleDeleteGuest} />;
     }
   };
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      <Sidebar 
-        activeView={activeView} 
-        onViewChange={(view) => {
-          if (view !== 'input') setEditingGuestId(null);
-          setActiveView(view);
-          setIsSidebarOpen(false);
-        }}
-        isOpen={isSidebarOpen}
-      />
-
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      <Sidebar activeView={activeView} onViewChange={(v) => { setActiveView(v); setIsSidebarOpen(false); }} isOpen={isSidebarOpen} />
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 flex-shrink-0 z-10">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-10">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 hover:bg-slate-100 rounded-md md:hidden"
-            >
-              <i className="fa-solid fa-bars text-slate-600"></i>
-            </button>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-slate-800 capitalize">
-                {activeView === 'dashboard' ? 'Overview' : activeView.replace(/([A-Z])/g, ' $1')}
-              </h1>
-              
-              {!forceLocal ? (
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider transition-all ${isSyncing ? 'border-blue-200 bg-blue-50 text-blue-600' : 'border-green-200 bg-green-50 text-green-600 sync-pulse'}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`}></span>
-                  {isSyncing ? 'Syncing...' : 'Cloud Active'}
-                </div>
-              ) : (
-                <div 
-                  onClick={() => isSupabaseConfigured && setForceLocal(false)}
-                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-600 text-[10px] font-bold uppercase tracking-wider cursor-help"
-                  title="Environment variables not found. Using local storage."
-                >
-                  <i className="fa-solid fa-cloud-slash"></i>
-                  Offline Mode
-                </div>
-              )}
+            <button onClick={() => setIsSidebarOpen(true)} className="p-2 hover:bg-slate-100 rounded-md md:hidden"><i className="fa-solid fa-bars"></i></button>
+            <h1 className="text-xl font-bold text-slate-800 capitalize">{activeView === 'dashboard' ? 'Overview' : activeView}</h1>
+            <div className={`px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${isSupabaseConfigured && !forceLocal ? 'border-green-200 bg-green-50 text-green-600 sync-pulse' : 'border-amber-200 bg-amber-50 text-amber-600'}`}>
+              {isSupabaseConfigured && !forceLocal ? 'Cloud Active' : 'Local Only'}
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="hidden sm:inline-block text-sm text-slate-500 font-medium">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-            </span>
-            <button 
-              onClick={fetchGuests}
-              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Manual Refresh"
-            >
-              <i className={`fa-solid fa-arrows-rotate ${isSyncing ? 'fa-spin' : ''}`}></i>
-            </button>
+            <span className="hidden sm:inline text-sm font-semibold text-slate-500">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+            <button onClick={fetchGuests} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><i className={`fa-solid fa-arrows-rotate ${isSyncing ? 'fa-spin' : ''}`}></i></button>
           </div>
         </header>
-
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-7xl mx-auto">
-            {renderView()}
-          </div>
+          <div className="max-w-7xl mx-auto">{renderView()}</div>
         </div>
       </main>
-
-      {/* Cloud Configuration Modal (Only if not configured) */}
-      {!isSupabaseConfigured && forceLocal && activeView === 'dashboard' && guests.length === 0 && (
-        <div className="fixed bottom-6 right-6 max-w-sm bg-white p-5 rounded-2xl shadow-2xl border border-blue-100 z-50 animate-bounce">
-          <div className="flex gap-4">
-            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-              <i className="fa-solid fa-cloud"></i>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-800">Enable Cloud Sync</p>
-              <p className="text-xs text-slate-500 mt-1">To share data with other users, add your Supabase URL and Key to the project environment variables.</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
