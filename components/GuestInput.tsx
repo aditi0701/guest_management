@@ -17,6 +17,15 @@ const GuestInput: React.FC<GuestInputProps> = ({ onSubmit, editingGuest, onCance
     eventName: ''
   });
 
+  // Get current local time in YYYY-MM-DDTHH:mm format for the 'min' attribute
+  const getNowString = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const minDateTime = getNowString();
+
   useEffect(() => {
     if (editingGuest) {
       setFormData({
@@ -32,154 +41,110 @@ const GuestInput: React.FC<GuestInputProps> = ({ onSubmit, editingGuest, onCance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!formData.name || !formData.arrival || !formData.departure || !formData.rank) {
-      alert("Please fill in all required fields (Name, Rank, Arrival, and Departure).");
+      alert("Please fill in Name, Rank, Arrival, and Departure.");
       return;
     }
 
-    const resultGuest: Guest = {
+    const arrivalDate = new Date(formData.arrival);
+    const departureDate = new Date(formData.departure);
+    const now = new Date();
+
+    // Rule: Guest entry can be made only after current day and time
+    if (arrivalDate < now) {
+      alert("Arrival time must be in the future (after current day and time).");
+      return;
+    }
+
+    // Logical Check: Departure must be after Arrival
+    if (departureDate <= arrivalDate) {
+      alert("Departure time must be strictly after the arrival time.");
+      return;
+    }
+
+    onSubmit({
       ...formData,
       id: editingGuest ? editingGuest.id : Math.random().toString(36).substr(2, 9),
       roomId: editingGuest?.roomId,
       transport: editingGuest?.transport,
       createdAt: editingGuest ? editingGuest.createdAt : new Date().toISOString()
-    };
-    onSubmit(resultGuest);
+    });
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden max-w-4xl mx-auto">
+      <div className="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">
-            {editingGuest ? 'Edit Guest Details' : 'Register New Guest'}
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">Fill in the information below to add a guest to the system.</p>
+          <h2 className="text-2xl font-bold text-slate-800">{editingGuest ? 'Edit Guest' : 'New Registration'}</h2>
+          <p className="text-sm text-slate-500">Note: Arrival must be scheduled for a future time.</p>
         </div>
-        {onCancel && (
-          <button 
-            onClick={onCancel}
-            className="text-slate-400 hover:text-slate-600 p-2"
-          >
-            <i className="fa-solid fa-xmark text-xl"></i>
-          </button>
-        )}
+        {onCancel && <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 p-2"><i className="fa-solid fa-xmark text-2xl"></i></button>}
       </div>
 
-      <form onSubmit={handleSubmit} className="p-6 space-y-8">
-        {/* Personal Details Section */}
-        <section>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-user-tag text-blue-500"></i>
-            Personal & Rank
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Guest Name <span className="text-rose-500">*</span></label>
-              <input
-                type="text"
-                required
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                placeholder="e.g. John Doe"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+      <form onSubmit={handleSubmit} className="p-8 space-y-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Identity */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">1. Guest Identity</h3>
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Full Name *</label>
+              <input type="text" required className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. John Doe" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Rank / Designation <span className="text-rose-500">*</span></label>
-              <input
-                type="text"
-                required
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                placeholder="e.g. Major General / CEO"
-                value={formData.rank}
-                onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-              />
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Rank / Designation *</label>
+              <input type="text" required className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Major General" value={formData.rank} onChange={(e) => setFormData({ ...formData, rank: e.target.value })} />
             </div>
           </div>
-        </section>
 
-        {/* Event & Logistics Section */}
-        <section>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-calendar-star text-amber-500"></i>
-            Event Details
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Name of Event</label>
-              <input
-                type="text"
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                placeholder="e.g. Annual Summit 2024"
-                value={formData.eventName}
-                onChange={(e) => setFormData({ ...formData, eventName: e.target.value })}
-              />
+          {/* Event Details */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">2. Event Details</h3>
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Name of Event</label>
+              <input type="text" className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Annual Summit" value={formData.eventName} onChange={(e) => setFormData({ ...formData, eventName: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Additional Guests (Count)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min="0"
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                  value={formData.additionalGuests}
-                  onChange={(e) => setFormData({ ...formData, additionalGuests: parseInt(e.target.value) || 0 })}
+            <div className="space-y-1">
+              <label className="text-sm font-bold text-slate-700">Additional Guests (Number)</label>
+              <input type="number" min="0" className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={formData.additionalGuests} onChange={(e) => setFormData({ ...formData, additionalGuests: parseInt(e.target.value) || 0 })} />
+            </div>
+          </div>
+
+          {/* Timing */}
+          <div className="col-span-1 md:col-span-2 space-y-4">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">3. Arrival & Departure (24h)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-slate-700">Arrival Date & Time *</label>
+                <input 
+                  type="datetime-local" 
+                  required 
+                  min={minDateTime}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={formData.arrival} 
+                  onChange={(e) => setFormData({ ...formData, arrival: e.target.value })} 
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Persons</div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-bold text-slate-700">Departure Date & Time *</label>
+                <input 
+                  type="datetime-local" 
+                  required 
+                  min={formData.arrival || minDateTime}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+                  value={formData.departure} 
+                  onChange={(e) => setFormData({ ...formData, departure: e.target.value })} 
+                />
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* Schedule Section */}
-        <section>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-            <i className="fa-solid fa-clock text-emerald-500"></i>
-            Timing (24h Format)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Arrival Date & Time <span className="text-rose-500">*</span></label>
-              <input
-                type="datetime-local"
-                required
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                value={formData.arrival}
-                onChange={(e) => setFormData({ ...formData, arrival: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Departure Date & Time <span className="text-rose-500">*</span></label>
-              <input
-                type="datetime-local"
-                required
-                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-                value={formData.departure}
-                onChange={(e) => setFormData({ ...formData, departure: e.target.value })}
-              />
-            </div>
-          </div>
-        </section>
-
-        <div className="pt-4 border-t border-slate-100 flex gap-4">
-          <button
-            type="submit"
-            className="flex-1 md:flex-none px-10 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2"
-          >
-            <i className="fa-solid fa-check"></i>
+        <div className="pt-8 border-t flex gap-4">
+          <button type="submit" className="flex-1 py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95">
             {editingGuest ? 'Update Record' : 'Save Registration'}
           </button>
-          
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 md:flex-none px-10 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-all"
-            >
-              Cancel
-            </button>
-          )}
+          {onCancel && <button type="button" onClick={onCancel} className="px-8 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl">Cancel</button>}
         </div>
       </form>
     </div>

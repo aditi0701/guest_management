@@ -27,7 +27,7 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
     { label: 'Total Guests', value: totalGuests, icon: 'fa-users', color: 'bg-blue-500' },
     { label: 'Rooms Occupied', value: `${allocatedRooms}/${ROOMS.length}`, icon: 'fa-door-open', color: 'bg-emerald-500' },
     { label: 'Active Transport', value: transportNeeded, icon: 'fa-car', color: 'bg-amber-500' },
-    { label: 'Events Today', value: new Set(guests.map(g => g.eventName)).size, icon: 'fa-calendar-check', color: 'bg-indigo-500' },
+    { label: 'Unique Events', value: new Set(guests.filter(g => g.eventName).map(g => g.eventName)).size, icon: 'fa-calendar-check', color: 'bg-indigo-500' },
   ];
 
   return (
@@ -52,7 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
           <div className="flex gap-2">
             <span className="text-xs font-medium px-3 py-1 bg-slate-100 text-slate-600 rounded-full flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-              7-Day Retention Enabled
+              7-Day Retention Active
             </span>
           </div>
         </div>
@@ -61,10 +61,11 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50/50">
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest Information</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Arrival (24h)</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Departure (24h)</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Room / Transport</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Guest Details</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Event</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Arrival</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Departure</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Allocation</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -80,12 +81,22 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
                         </div>
                         <div>
                           <div className="font-bold text-slate-800">{guest.name}</div>
-                          <div className="text-xs text-slate-500 flex items-center gap-1">
-                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 uppercase font-bold text-[9px]">{guest.rank}</span>
-                            {guest.additionalGuests > 0 && <span>• +{guest.additionalGuests} Guests</span>}
+                          <div className="text-[10px] text-slate-500 flex flex-wrap items-center gap-1 mt-0.5">
+                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-bold uppercase">{guest.rank}</span>
+                            {guest.additionalGuests > 0 && <span className="bg-blue-50 px-1.5 py-0.5 rounded text-blue-600 font-bold">+{guest.additionalGuests}</span>}
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {guest.eventName ? (
+                        <div className="flex items-center gap-2">
+                          <i className="fa-solid fa-calendar-star text-indigo-400 text-xs"></i>
+                          <span className="text-sm font-semibold text-slate-700">{guest.eventName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300 italic">No Event</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-slate-700">{formatDate(guest.arrival)}</div>
@@ -98,40 +109,38 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
                         {room ? (
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          <div className="flex items-center gap-1.5">
+                            <i className="fa-solid fa-bed text-emerald-500 text-[10px]"></i>
                             <span className="text-xs font-semibold text-emerald-700">{room.name}</span>
                           </div>
                         ) : (
-                          <span className="text-[10px] font-medium text-slate-400 italic">No Room</span>
+                          <span className="text-[10px] text-slate-300 italic">No Room</span>
                         )}
                         {guest.transport && guest.transport !== 'None' ? (
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          <div className="flex items-center gap-1.5">
+                            <i className="fa-solid fa-car text-amber-500 text-[10px]"></i>
                             <span className="text-xs font-semibold text-amber-700">{guest.transport}</span>
                           </div>
                         ) : (
-                          <span className="text-[10px] font-medium text-slate-400 italic">No Vehicle</span>
+                          <span className="text-[10px] text-slate-300 italic">No Vehicle</span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => onEdit(guest.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all"
-                          title="Edit Entry"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                          title="Edit"
                         >
                           <i className="fa-solid fa-pen-to-square"></i>
-                          <span>Edit</span>
                         </button>
                         <button
                           onClick={() => onDelete(guest.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all"
-                          title="Delete Entry"
+                          className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                          title="Delete"
                         >
                           <i className="fa-solid fa-trash-can"></i>
-                          <span>Delete</span>
                         </button>
                       </div>
                     </td>
@@ -140,8 +149,8 @@ const Dashboard: React.FC<DashboardProps> = ({ guests, onEdit, onDelete }) => {
               })}
               {guests.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center">
-                    <p className="text-slate-400 font-medium">No records found. Start by registering a guest.</p>
+                  <td colSpan={6} className="px-6 py-20 text-center">
+                    <p className="text-slate-400 font-medium italic">No guest records found.</p>
                   </td>
                 </tr>
               )}
